@@ -233,6 +233,9 @@ extension PodcastViewModel {
                 if refresh || explore.isEmpty {
                     $0.addTask { await self.loadExplore() }
                 }
+                if refresh || channelPodcasts.isEmpty {
+                    $0.addTask { await self.loadChannel() }
+                }
             }
 
             if refresh {
@@ -302,13 +305,41 @@ private extension PodcastViewModel {
 
         do {
             let casts = try await ABSClient[podcast.id.connectionID].podcastsRandom(from: podcast.id.libraryID, limit: 11)
-            let filtered = casts.filter { $0.id != podcast.id }.prefix(10)
+            // Drop the current podcast and any fully-finished ones (no incomplete episodes left to discover).
+            let filtered = casts.filter { $0.id != podcast.id && ($0.incompleteEpisodeCount ?? -1) != 0 }.prefix(10)
 
             withAnimation {
                 self.explore = Array(filtered)
             }
         } catch {
             logger.warning("Failed to load explore podcasts for \(self.podcast.id, privacy: .public): \(error, privacy: .public)")
+        }
+    }
+
+    /// Other podcasts on the same channel — i.e. by the same author. Surfaced
+    /// as a row next to "Explore". Resolved through the regular library search
+    /// (see ``APIClient/channel(with:)``), not a full-library scan.
+    func loadChannel() async {
+        #if DEBUG
+        if podcast.id.libraryID == "fixture" {
+            return
+        }
+        #endif
+
+        guard let author = podcast.authors.first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
+            return
+        }
+
+        do {
+            let channelID = Channel.convertNameToID(author, libraryID: podcast.id.libraryID, connectionID: podcast.id.connectionID)
+            let channel = try await ABSClient[podcast.id.connectionID].channel(with: channelID)
+            let siblings = channel.podcasts.filter { $0.id != podcast.id }
+
+            withAnimation {
+                self.channelPodcasts = siblings
+            }
+        } catch {
+            logger.warning("Failed to load channel podcasts for \(self.podcast.id, privacy: .public): \(error, privacy: .public)")
         }
     }
 

@@ -30,7 +30,7 @@ struct PodcastView: View {
             if !viewModel.episodes.isEmpty {
                 HStack {
                     Menu {
-                        ForEach(viewModel.seasons, id: \.hashValue) { season in
+                        ForEach(viewModel.seasons, id: \.self) { season in
                             Toggle(viewModel.seasonLabel(of: season), isOn: .init { viewModel.seasonFilter == season } set: {
                                 if $0 {
                                     viewModel.seasonFilter = season
@@ -75,6 +75,18 @@ struct PodcastView: View {
                 .alignmentGuide(.listRowSeparatorLeading) { _ in 20 }
 
                 EpisodeList(episodes: viewModel.preview, context: .podcast, selected: .constant(nil))
+            }
+
+            if !viewModel.channelPodcasts.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    RowTitle(title: String(localized: "item.related.podcast.channel"))
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
+                    PodcastHGrid(podcasts: viewModel.channelPodcasts)
+                }
+                .padding(.top, 16)
+                .listRowSeparator(.hidden)
+                .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
             }
 
             if !viewModel.explore.isEmpty {

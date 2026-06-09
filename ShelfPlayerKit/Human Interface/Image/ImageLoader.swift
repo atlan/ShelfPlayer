@@ -25,7 +25,13 @@ public final actor ImageLoader {
             }
         }
 
-        return try await cached[request]!.value
+        do {
+            return try await cached[request]!.value
+        } catch {
+            // Don't cache a transient failure forever — evict so a later request retries.
+            cached[request] = nil
+            throw error
+        }
     }
 
     private nonisolated(unsafe) let platformImageCache = NSCache<ImageRequest, PlatformImage>()
@@ -153,14 +159,19 @@ public final class ImageRequest: NSObject, Sendable {
 
 public extension ItemIdentifier {
     func data(size: ImageSize) async -> Data? {
-        try? await ImageLoader.shared.data(for: .init(itemID: self, size: size))
+        // Channels are client-derived and have no server artwork — they always
+        // render the monogram placeholder, so skip the (failing) network fetch.
+        guard type != .channel else { return nil }
+        return try? await ImageLoader.shared.data(for: .init(itemID: self, size: size))
     }
 
     func platformImage(size: ImageSize) async -> PlatformImage? {
-        await ImageLoader.shared.platformImage(for: .init(itemID: self, size: size))
+        guard type != .channel else { return nil }
+        return await ImageLoader.shared.platformImage(for: .init(itemID: self, size: size))
     }
 
     func cachedPlatformImage(size: ImageSize) -> PlatformImage? {
-        ImageLoader.shared.cachedPlatformImage(for: .init(itemID: self, size: size))
+        guard type != .channel else { return nil }
+        return ImageLoader.shared.cachedPlatformImage(for: .init(itemID: self, size: size))
     }
 }
