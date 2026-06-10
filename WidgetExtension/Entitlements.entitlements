@@ -12,7 +12,7 @@
 	</array>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>$(AppIdentifierPrefix)io.rfk.${KEYCHAIN_GROUP_SUFFIX}</string>
+		<string>$(AppIdentifierPrefix)${BUNDLE_ID_PREFIX}.${KEYCHAIN_GROUP_SUFFIX}</string>
 	</array>
 </dict>
 </plist>
